@@ -63,6 +63,7 @@ export default function ExplorePage() {
           <div className="relative max-w-md mx-auto">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
+              suppressHydrationWarning
               placeholder="Search lessons..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -71,12 +72,13 @@ export default function ExplorePage() {
           </div>
 
           {/* Filter Buttons */}
-          <div className="flex flex-wrap justify-center gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Language:</span>
               {(["all", "english", "amharic"] as const).map((lang) => (
                 <Button
                   key={lang}
+                  suppressHydrationWarning
                   variant={selectedLanguage === lang ? "default" : "outline"}
                   size="sm"
                   onClick={() => setSelectedLanguage(lang)}
@@ -92,6 +94,7 @@ export default function ExplorePage() {
               {(["all", "beginner", "intermediate", "advanced"] as const).map((diff) => (
                 <Button
                   key={diff}
+                  suppressHydrationWarning
                   variant={selectedDifficulty === diff ? "default" : "outline"}
                   size="sm"
                   onClick={() => setSelectedDifficulty(diff)}
