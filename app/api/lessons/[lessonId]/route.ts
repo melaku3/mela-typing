@@ -3,15 +3,24 @@ import { getDatabase } from "@/lib/mongodb"
 import type { Lesson } from "@/types"
 import { ObjectId } from "mongodb"
 
-export async function GET(request: NextRequest, context: { params: { lessonId: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { lessonId: string } }
+) {
+  const resolvedParams = await Promise.resolve(params)
+  
+  if (!resolvedParams?.lessonId) {
+    return NextResponse.json({ error: "Lesson ID is required" }, { status: 400 })
+  }
+
   try {
-    const { lessonId } = context.params
+    const lessonId = resolvedParams.lessonId
     const db = await getDatabase()
     const lessonsCollection = db.collection<Lesson>("lessons")
 
     const lesson = await lessonsCollection.findOne({
       _id: new ObjectId(lessonId),
-    })
+    } as any)
 
     if (!lesson) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 })

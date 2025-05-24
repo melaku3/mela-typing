@@ -2,9 +2,18 @@ import { NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import type { Progress } from "@/types"
 
-export async function GET(request: NextRequest, context: { params: { userId: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { userId: string } }
+) {
+  const resolvedParams = await Promise.resolve(params)
+  
+  if (!resolvedParams?.userId) {
+    return NextResponse.json({ error: "User ID is required" }, { status: 400 })
+  }
+
   try {
-    const { userId } = context.params
+    const userId = resolvedParams.userId
     const db = await getDatabase()
     const progressCollection = db.collection<Progress>("progress")
 
