@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,39 +9,80 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Volume2, Globe, Accessibility, Save } from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
+import { Volume2, Globe, Palette, Save } from "lucide-react"
+import { useSettings } from "@/lib/SettingsContext"
+import { useLanguageQuery } from "@/hooks/useLanguageQuery"
+import { AnimatedBackground } from "@/components/ui/animatedBackground"
 
 export default function SettingsPage() {
   const { data: session } = useSession()
-  const [settings, setSettings] = useState({
-    language: "english",
-    audioEnabled: true,
-    autoplayAudio: true,
-    highContrast: false,
-    largeText: false,
-    reducedMotion: false,
-  })
+  const { settings, updateSettings, isLoading } = useSettings()
+  const { t } = useLanguageQuery()
+  const [isSaving, setIsSaving] = useState(false)
+  const [localSettings, setLocalSettings] = useState(settings)
+
+  // Update local settings when global settings change
+  useEffect(() => {
+    setLocalSettings(settings)
+  }, [settings])
 
   const handleSave = async () => {
-    // In a real app, this would save to the database
-    console.log("Saving settings:", settings)
+    setIsSaving(true)
+    try {
+      await updateSettings(localSettings)
+
+      // Show success toast
+      toast({
+        title: t.settingsSaved,
+        description: t.settingsSaved,
+      })
+    } catch (error) {
+      console.error("Failed to save settings:", error)
+      toast({
+        title: t.somethingWentWrong,
+        description: t.tryAgainLater,
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const updateLocalSetting = (path: string, value: any) => {
+    setLocalSettings((prev) => {
+      const newSettings = { ...prev }
+      const keys = path.split(".")
+      let current = newSettings as any
+
+      for (let i = 0; i < keys.length - 1; i++) {
+        current = current[keys[i]]
+      }
+      current[keys[keys.length - 1]] = value
+
+      return newSettings
+    })
   }
 
   if (!session) {
+    // Redirect to auth-required page for unauthenticated users
+    window.location.href = "/auth-required"
+    return null
+  }
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-96">
-          <CardContent className="p-8 text-center">
-            <p className="text-muted-foreground">Please sign in to access settings</p>
-          </CardContent>
-        </Card>
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
+    <div className="min-h-screen">
+      <AnimatedBackground />
+
+      <div className="container mx-auto px-4 py-8 max-w-2xl relative">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -49,9 +90,9 @@ export default function SettingsPage() {
           className="text-center space-y-4 mb-8"
         >
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-            Settings
+            {t.settings}
           </h1>
-          <p className="text-muted-foreground">Customize your Mela-Typing experience</p>
+          <p className="text-muted-foreground">{t.chooseLanguage}</p>
         </motion.div>
 
         <motion.div
@@ -65,22 +106,22 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Globe className="w-5 h-5" />
-                Language Preferences
+                {t.languageSettings}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="language">Primary Language</Label>
+                <Label htmlFor="language">{t.chooseLanguage}</Label>
                 <Select
-                  value={settings.language}
-                  onValueChange={(value) => setSettings((prev) => ({ ...prev, language: value }))}
+                  value={localSettings.language}
+                  onValueChange={(value: "en" | "am") => updateLocalSetting("language", value)}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="english">English</SelectItem>
-                    <SelectItem value="amharic">Amharic (አማርኛ)</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="am">አማርኛ (Amharic)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -92,19 +133,19 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Volume2 className="w-5 h-5" />
-                Audio Settings
+                {t.audioSettings}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="audio-enabled">Enable Audio</Label>
-                  <p className="text-sm text-muted-foreground">Play ambient sounds during typing sessions</p>
+                  <Label htmlFor="background-music">{t.enableBackgroundMusic}</Label>
+                  <p className="text-sm text-muted-foreground">{t.enableBackgroundMusic}</p>
                 </div>
                 <Switch
-                  id="audio-enabled"
-                  checked={settings.audioEnabled}
-                  onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, audioEnabled: checked }))}
+                  id="background-music"
+                  checked={localSettings.audio.background}
+                  onCheckedChange={(checked) => updateLocalSetting("audio.background", checked)}
                 />
               </div>
 
@@ -112,75 +153,62 @@ export default function SettingsPage() {
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="autoplay-audio">Autoplay Audio</Label>
-                  <p className="text-sm text-muted-foreground">Automatically start audio when typing begins</p>
+                  <Label htmlFor="mistake-buzzer">{t.enableSoundEffects}</Label>
+                  <p className="text-sm text-muted-foreground">{t.enableSoundEffects}</p>
                 </div>
                 <Switch
-                  id="autoplay-audio"
-                  checked={settings.autoplayAudio}
-                  onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, autoplayAudio: checked }))}
-                  disabled={!settings.audioEnabled}
+                  id="mistake-buzzer"
+                  checked={localSettings.audio.mistakeSound}
+                  onCheckedChange={(checked) => updateLocalSetting("audio.mistakeSound", checked)}
                 />
               </div>
             </CardContent>
           </Card>
 
-          {/* Accessibility Settings */}
+          {/* Appearance Settings */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Accessibility className="w-5 h-5" />
-                Accessibility
+                <Palette className="w-5 h-5" />
+                {t.themeSettings}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="high-contrast">High Contrast Mode</Label>
-                  <p className="text-sm text-muted-foreground">Increase contrast for better visibility</p>
-                </div>
-                <Switch
-                  id="high-contrast"
-                  checked={settings.highContrast}
-                  onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, highContrast: checked }))}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="large-text">Large Text</Label>
-                  <p className="text-sm text-muted-foreground">Increase text size for better readability</p>
-                </div>
-                <Switch
-                  id="large-text"
-                  checked={settings.largeText}
-                  onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, largeText: checked }))}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="reduced-motion">Reduced Motion</Label>
-                  <p className="text-sm text-muted-foreground">Minimize animations and transitions</p>
-                </div>
-                <Switch
-                  id="reduced-motion"
-                  checked={settings.reducedMotion}
-                  onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, reducedMotion: checked }))}
-                />
+              <div className="space-y-2">
+                <Label htmlFor="theme">{t.themeSettings}</Label>
+                <Select
+                  value={localSettings.appearance}
+                  onValueChange={(value: "light" | "dark" | "system") => updateLocalSetting("appearance", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="light">{t.lightMode}</SelectItem>
+                    <SelectItem value="dark">{t.darkMode}</SelectItem>
+                    <SelectItem value="system">{t.systemMode}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
 
           {/* Save Button */}
-          <Button onClick={handleSave} className="w-full" size="lg">
-            <Save className="w-4 h-4 mr-2" />
-            Save Settings
-          </Button>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button onClick={handleSave} className="w-full" size="lg" disabled={isSaving}>
+              {isSaving ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                  {t.loading}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Save className="w-4 h-4" />
+                  {t.save}
+                </div>
+              )}
+            </Button>
+          </motion.div>
         </motion.div>
       </div>
     </div>

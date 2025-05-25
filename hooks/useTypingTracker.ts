@@ -1,9 +1,11 @@
 "use client"
 
 import { useState, useCallback } from "react"
+import { useSettings } from "@/lib/SettingsContext"
 import type { TypingStats } from "@/types"
 
 export function useTypingTracker(content: string[]) {
+  const { settings } = useSettings()
   const [stats, setStats] = useState<TypingStats>({
     currentWpm: 0,
     accuracy: 0,
@@ -18,6 +20,28 @@ export function useTypingTracker(content: string[]) {
   const [totalChars, setTotalChars] = useState(0)
 
   const fullText = content.join(" ")
+
+  // Play mistake sound
+  const playMistakeSound = useCallback(() => {
+    if (settings.audio.mistakeSound) {
+      // Create a simple beep sound
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+
+      oscillator.frequency.value = 400
+      oscillator.type = "sine"
+
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1)
+
+      oscillator.start(audioContext.currentTime)
+      oscillator.stop(audioContext.currentTime + 0.1)
+    }
+  }, [settings.audio.mistakeSound])
 
   const calculateWPM = useCallback(() => {
     if (!startTime) return 0
@@ -41,6 +65,15 @@ export function useTypingTracker(content: string[]) {
 
       const currentWord = content[stats.currentWordIndex]
       if (!currentWord) return
+
+      // Check for mistakes
+      const lastChar = input[input.length - 1]
+      const expectedChar = currentWord[input.length - 1]
+
+      if (lastChar && lastChar !== expectedChar && input.length <= currentWord.length) {
+        playMistakeSound()
+        setStats((prev) => ({ ...prev, mistakes: prev.mistakes + 1 }))
+      }
 
       // Check if word is complete
       if (input.endsWith(" ") && input.trim() === currentWord) {
@@ -68,7 +101,7 @@ export function useTypingTracker(content: string[]) {
         accuracy: calculateAccuracy(),
       }))
     },
-    [content, stats.currentWordIndex, startTime, calculateWPM, calculateAccuracy],
+    [content, stats.currentWordIndex, startTime, calculateWPM, calculateAccuracy, playMistakeSound],
   )
 
   const resetTracker = useCallback(() => {

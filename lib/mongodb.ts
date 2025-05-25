@@ -27,7 +27,17 @@ if (process.env.NODE_ENV === "development") {
 
 export async function getDatabase(): Promise<Db> {
   const client = await clientPromise
-  return client.db("mela-typing")
+  const db = client.db("mela-typing")
+
+  // Ensure unique index on users.email
+  try {
+    await db.collection("users").createIndex({ email: 1 }, { unique: true })
+  } catch (error) {
+    // Index might already exist, ignore error
+    console.log("Email index already exists or failed to create")
+  }
+
+  return db
 }
 
 export default clientPromise

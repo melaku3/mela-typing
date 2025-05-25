@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Search } from "lucide-react"
 import { LessonCard } from "@/components/lesson/lessonCard"
+import { useLanguageQuery } from "@/hooks/useLanguageQuery"
 import type { Lesson } from "@/types"
 
 export default function ExplorePage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedLanguage, setSelectedLanguage] = useState<"all" | "english" | "amharic">("all")
   const [selectedDifficulty, setSelectedDifficulty] = useState<"all" | "beginner" | "intermediate" | "advanced">("all")
+  const { t } = useLanguageQuery()
 
   const { data: lessons, isLoading } = useQuery({
     queryKey: ["lessons"],
@@ -45,11 +47,9 @@ export default function ExplorePage() {
           className="text-center space-y-4 mb-12"
         >
           <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-            Explore Lessons
+            {t.exploreLessons}
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Discover fascinating stories from Ethiopian history and culture
-          </p>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">{t.ethiopianHistory}</p>
         </motion.div>
 
         {/* Filters */}
@@ -63,8 +63,7 @@ export default function ExplorePage() {
           <div className="relative max-w-md mx-auto">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              suppressHydrationWarning
-              placeholder="Search lessons..."
+              placeholder={t.searchLessons}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -72,35 +71,33 @@ export default function ExplorePage() {
           </div>
 
           {/* Filter Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-wrap justify-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Language:</span>
+              <span className="text-sm font-medium">{t.language}:</span>
               {(["all", "english", "amharic"] as const).map((lang) => (
                 <Button
                   key={lang}
-                  suppressHydrationWarning
                   variant={selectedLanguage === lang ? "default" : "outline"}
                   size="sm"
                   onClick={() => setSelectedLanguage(lang)}
                   className="capitalize"
                 >
-                  {lang}
+                  {lang === "all" ? t.allLevels : lang}
                 </Button>
               ))}
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Difficulty:</span>
+              <span className="text-sm font-medium">{t.difficulty}:</span>
               {(["all", "beginner", "intermediate", "advanced"] as const).map((diff) => (
                 <Button
                   key={diff}
-                  suppressHydrationWarning
                   variant={selectedDifficulty === diff ? "default" : "outline"}
                   size="sm"
                   onClick={() => setSelectedDifficulty(diff)}
                   className="capitalize"
                 >
-                  {diff}
+                  {diff === "all" ? t.allLevels : t[diff as keyof typeof t] || diff}
                 </Button>
               ))}
             </div>
@@ -114,11 +111,7 @@ export default function ExplorePage() {
           transition={{ delay: 0.2 }}
           className="text-center mb-8"
         >
-          <p className="text-muted-foreground">
-            {isLoading
-              ? "Loading..."
-              : `${filteredLessons.length} lesson${filteredLessons.length !== 1 ? "s" : ""} found`}
-          </p>
+          <p className="text-muted-foreground">{isLoading ? t.loading : `${filteredLessons.length} ${t.lessons}`}</p>
         </motion.div>
 
         {/* Lessons Grid */}
@@ -146,8 +139,8 @@ export default function ExplorePage() {
         ) : (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
             <div className="text-6xl mb-4">📚</div>
-            <h3 className="text-xl font-semibold mb-2">No lessons found</h3>
-            <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>
+            <h3 className="text-xl font-semibold mb-2">{t.noLessonsFound}</h3>
+            <p className="text-muted-foreground">{t.tryAgainLater}</p>
           </motion.div>
         )}
       </div>
